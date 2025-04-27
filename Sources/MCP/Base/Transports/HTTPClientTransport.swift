@@ -226,12 +226,16 @@ public actor HTTPClientTransport: Actor, Transport {
                 buffer.append(char)
 
                 // Process complete lines
-                while let newlineIndex = buffer.firstIndex(of: "\n") {
-                    let line = buffer[..<newlineIndex]
+                while let newlineIndex = buffer.utf8.firstIndex(where: { $0 == 10 }) {
+                    var line = buffer[..<newlineIndex]
+                    if line.hasSuffix("\r") {
+                        line = line.dropLast()
+                    }
+
                     buffer = String(buffer[buffer.index(after: newlineIndex)...])
 
                     // Empty line marks the end of an event
-                    if line.isEmpty || line == "\r" || line == "\n" || line == "\r\n" {
+                    if line.isEmpty {
                         if !eventData.isEmpty {
                             // Process the event
                             if eventType == "id" {
@@ -256,6 +260,10 @@ public actor HTTPClientTransport: Actor, Transport {
                         continue
                     }
 
+                    if line.hasSuffix("\r") {
+                        line = line.dropLast()
+                    }
+                    
                     // Lines starting with ":" are comments
                     if line.hasPrefix(":") { continue }
 
