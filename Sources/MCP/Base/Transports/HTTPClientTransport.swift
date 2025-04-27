@@ -205,6 +205,12 @@ public actor HTTPClientTransport: Actor, Transport {
 
             // Check response status
             guard httpResponse.statusCode == 200 else {
+                // If the server returns 405 Method Not Allowed,
+                // it indicates that the server doesn't support SSE streaming.
+                // We should cancel the task instead of retrying the connection.
+                if httpResponse.statusCode == 405 {
+                    self.streamingTask?.cancel()
+                }
                 throw MCPError.internalError("HTTP error: \(httpResponse.statusCode)")
             }
 
