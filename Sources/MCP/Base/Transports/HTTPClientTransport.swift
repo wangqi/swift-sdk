@@ -94,7 +94,9 @@ public actor HTTPClientTransport: Transport {
         )
     }
 
-    internal init(
+    // Change internal to public
+    // wangqi 2025-05-09
+    public init(
         endpoint: URL,
         session: URLSession,
         streaming: Bool = false,
@@ -282,7 +284,11 @@ public actor HTTPClientTransport: Transport {
                 }
                 logger.debug("Session ID received", metadata: ["sessionID": "\(newSessionID)"])
             }
-
+            
+            // wangqi 2025-05-09
+            if httpResponse.statusCode >= 400 {
+                _ = try await logResponseBody(stream, from: httpResponse, logger: logger)
+            }
             try processHTTPResponse(httpResponse, contentType: contentType)
             guard case 200..<300 = httpResponse.statusCode else { return }
 
@@ -366,6 +372,20 @@ public actor HTTPClientTransport: Transport {
     /// - Returns: An AsyncThrowingStream of Data objects
     public func receive() -> AsyncThrowingStream<Data, Swift.Error> {
         return messageStream
+    }
+    
+    /// Log the http response body.  Once you’ve consumed the AsyncBytes stream, it cannot be re-read.
+    /// wangqi created 2025-05-09
+    func logResponseBody(_ stream: URLSession.AsyncBytes, from response: HTTPURLResponse, logger: Logger) async throws -> Data {
+        let bodyData = try await stream.reduce(into: Data()) { $0.append($1) }
+
+        if let bodyString = String(data: bodyData, encoding: .utf8) {
+            logger.warning("HTTP \(response.statusCode) Body:\n\(bodyString)")
+        } else {
+            logger.warning("HTTP \(response.statusCode) Body (binary, \(bodyData.count) bytes)")
+        }
+
+        return bodyData
     }
 
     // MARK: - SSE
