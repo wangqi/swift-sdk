@@ -168,7 +168,8 @@ public actor Client {
     }
 
     /// Connect to the server using the given transport
-    public func connect(transport: any Transport) async throws {
+    @discardableResult
+    public func connect(transport: any Transport) async throws -> Initialize.Result {
         self.connection = transport
         try await self.connection?.connect()
 
@@ -217,6 +218,9 @@ public actor Client {
             } while true
             await self.logger?.info("Client message handling loop task is terminating.")
         }
+
+        // Automatically initialize after connecting
+        return try await _initialize()
     }
 
     /// Disconnect the client and cancel all pending requests
@@ -480,7 +484,23 @@ public actor Client {
 
     // MARK: - Lifecycle
 
+    /// Initialize the connection with the server.
+    ///
+    /// - Important: This method is deprecated. Initialization now happens automatically
+    ///   when calling `connect(transport:)`. You should use that method instead.
+    ///
+    /// - Returns: The server's initialization response containing capabilities and server info
+    @available(
+        *, deprecated,
+        message:
+            "Initialization now happens automatically during connect. Use connect(transport:) instead."
+    )
     public func initialize() async throws -> Initialize.Result {
+        return try await _initialize()
+    }
+
+    /// Internal initialization implementation
+    private func _initialize() async throws -> Initialize.Result {
         let request = Initialize.request(
             .init(
                 protocolVersion: Version.latest,
