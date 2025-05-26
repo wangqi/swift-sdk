@@ -25,7 +25,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.8.2")
+    .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", from: "0.9.0")
 ]
 ```
 
