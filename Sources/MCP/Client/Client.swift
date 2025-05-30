@@ -578,6 +578,20 @@ public actor Client {
         _ = try await send(request)
     }
 
+    public func listResourceTemplates(cursor: String? = nil) async throws -> (
+        templates: [Resource.Template], nextCursor: String?
+    ) {
+        try validateServerCapability(\.resources, "Resources")
+        let request: Request<ListResourceTemplates>
+        if let cursor = cursor {
+            request = ListResourceTemplates.request(.init(cursor: cursor))
+        } else {
+            request = ListResourceTemplates.request(.init())
+        }
+        let result = try await send(request)
+        return (templates: result.templates, nextCursor: result.nextCursor)
+    }
+
     // MARK: - Tools
 
     public func listTools(cursor: String? = nil) async throws -> (
