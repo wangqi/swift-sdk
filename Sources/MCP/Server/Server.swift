@@ -82,12 +82,19 @@ public actor Server {
             public init() {}
         }
 
+        /// Sampling capabilities
+        public struct Sampling: Hashable, Codable, Sendable {
+            public init() {}
+        }
+
         /// Logging capabilities
         public var logging: Logging?
         /// Prompts capabilities
         public var prompts: Prompts?
         /// Resources capabilities
         public var resources: Resources?
+        /// Sampling capabilities
+        public var sampling: Sampling?
         /// Tools capabilities
         public var tools: Tools?
 
@@ -95,11 +102,13 @@ public actor Server {
             logging: Logging? = nil,
             prompts: Prompts? = nil,
             resources: Resources? = nil,
+            sampling: Sampling? = nil,
             tools: Tools? = nil
         ) {
             self.logging = logging
             self.prompts = prompts
             self.resources = resources
+            self.sampling = sampling
             self.tools = tools
         }
     }
@@ -290,6 +299,69 @@ public actor Server {
         try await connection.send(notificationData)
     }
 
+    // MARK: - Sampling
+
+    /// Request sampling from the connected client
+    ///
+    /// Sampling allows servers to request LLM completions through the client,
+    /// enabling sophisticated agentic behaviors while maintaining human-in-the-loop control.
+    ///
+    /// The sampling flow follows these steps:
+    /// 1. Server sends a `sampling/createMessage` request to the client
+    /// 2. Client reviews the request and can modify it
+    /// 3. Client samples from an LLM
+    /// 4. Client reviews the completion
+    /// 5. Client returns the result to the server
+    ///
+    /// - Parameters:
+    ///   - messages: The conversation history to send to the LLM
+    ///   - modelPreferences: Model selection preferences
+    ///   - systemPrompt: Optional system prompt
+    ///   - includeContext: What MCP context to include
+    ///   - temperature: Controls randomness (0.0 to 1.0)
+    ///   - maxTokens: Maximum tokens to generate
+    ///   - stopSequences: Array of sequences that stop generation
+    ///   - metadata: Additional provider-specific parameters
+    /// - Returns: The sampling result containing the model used, stop reason, role, and content
+    /// - Throws: MCPError if the request fails
+    /// - SeeAlso: https://modelcontextprotocol.io/docs/concepts/sampling#how-sampling-works
+    public func requestSampling(
+        messages: [Sampling.Message],
+        modelPreferences: Sampling.ModelPreferences? = nil,
+        systemPrompt: String? = nil,
+        includeContext: Sampling.ContextInclusion? = nil,
+        temperature: Double? = nil,
+        maxTokens: Int,
+        stopSequences: [String]? = nil,
+        metadata: [String: Value]? = nil
+    ) async throws -> CreateSamplingMessage.Result {
+        guard connection != nil else {
+            throw MCPError.internalError("Server connection not initialized")
+        }
+
+        // Note: This is a conceptual implementation. The actual implementation would require
+        // bidirectional communication support in the transport layer, allowing servers to
+        // send requests to clients and receive responses.
+
+        _ = CreateSamplingMessage.request(
+            .init(
+                messages: messages,
+                modelPreferences: modelPreferences,
+                systemPrompt: systemPrompt,
+                includeContext: includeContext,
+                temperature: temperature,
+                maxTokens: maxTokens,
+                stopSequences: stopSequences,
+                metadata: metadata
+            )
+        )
+
+        // This would need to be implemented with proper request/response handling
+        // similar to how the client sends requests to servers
+        throw MCPError.internalError(
+            "Bidirectional sampling requests not yet implemented in transport layer")
+    }
+
     /// A JSON-RPC batch containing multiple requests and/or notifications
     struct Batch: Sendable {
         /// An item in a JSON-RPC batch
@@ -308,7 +380,7 @@ public actor Server {
 
     /// Process a batch of requests and/or notifications
     private func handleBatch(_ batch: Batch) async throws {
-        await logger?.debug("Processing batch request", metadata: ["size": "\(batch.items.count)"])
+        await logger?.trace("Processing batch request", metadata: ["size": "\(batch.items.count)"])
 
         if batch.items.isEmpty {
             // Empty batch is invalid according to JSON-RPC spec
@@ -378,7 +450,7 @@ public actor Server {
             )
         }
 
-        await logger?.debug(
+        await logger?.trace(
             "Processing request",
             metadata: [
                 "method": "\(request.method)",
@@ -433,7 +505,7 @@ public actor Server {
     }
 
     private func handleMessage(_ message: Message<AnyNotification>) async throws {
-        await logger?.debug(
+        await logger?.trace(
             "Processing notification",
             metadata: ["method": "\(message.method)"])
 

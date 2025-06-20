@@ -44,9 +44,6 @@ import struct Foundation.Data
     /// // Create a transport and connect
     /// let transport = StdioTransport()
     /// try await client.connect(transport: transport)
-    ///
-    /// // Initialize the connection
-    /// let result = try await client.initialize()
     /// ```
     public actor StdioTransport: Transport {
         private let input: FileDescriptor
@@ -158,7 +155,7 @@ import struct Foundation.Data
                         pendingData = pendingData[(newlineIndex + 1)...]
 
                         if !messageData.isEmpty {
-                            logger.debug(
+                            logger.trace(
                                 "Message received", metadata: ["size": "\(messageData.count)"])
                             messageContinuation.yield(Data(messageData))
                         }
