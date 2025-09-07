@@ -12,7 +12,7 @@ public struct Tool: Hashable, Codable, Sendable {
     /// The tool name
     public let name: String
     /// The tool description
-    public let description: String
+    public let description: String?
     /// The tool input schema
     public let inputSchema: Value
 
@@ -85,7 +85,7 @@ public struct Tool: Hashable, Codable, Sendable {
     /// Initialize a tool with a name, description, input schema, and annotations
     public init(
         name: String,
-        description: String,
+        description: String?,
         inputSchema: Value,
         annotations: Annotations = nil
     ) {
