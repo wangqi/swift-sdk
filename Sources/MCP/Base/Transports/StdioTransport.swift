@@ -13,9 +13,11 @@ import struct Foundation.Data
     import Darwin.POSIX
 #elseif canImport(Glibc)
     import Glibc
+#elseif canImport(Musl)
+    import Musl
 #endif
 
-#if canImport(Darwin) || canImport(Glibc)
+#if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
     /// An implementation of the MCP stdio transport protocol.
     ///
     /// This transport implements the [stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#stdio)
@@ -94,7 +96,7 @@ import struct Foundation.Data
             try setNonBlocking(fileDescriptor: output)
 
             isConnected = true
-            logger.info("Transport connected successfully")
+            logger.debug("Transport connected successfully")
 
             // Start reading loop in background
             Task {
@@ -107,7 +109,7 @@ import struct Foundation.Data
         /// - Parameter fileDescriptor: The file descriptor to configure
         /// - Throws: Error if the operation fails
         private func setNonBlocking(fileDescriptor: FileDescriptor) throws {
-            #if canImport(Darwin) || canImport(Glibc)
+            #if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
                 // Get current flags
                 let flags = fcntl(fileDescriptor.rawValue, F_GETFL)
                 guard flags >= 0 else {
@@ -181,7 +183,7 @@ import struct Foundation.Data
             guard isConnected else { return }
             isConnected = false
             messageContinuation.finish()
-            logger.info("Transport disconnected")
+            logger.debug("Transport disconnected")
         }
 
         /// Sends a message over the transport.
