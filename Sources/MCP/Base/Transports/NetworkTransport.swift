@@ -1,6 +1,10 @@
 import Foundation
 import Logging
 
+// Fix Swift 6 strict concurrency: reference box for mutable Bool across actor boundaries
+// wangqi modified 2026-03-24
+private final class _BoolBox: @unchecked Sendable { var value = false }
+
 #if canImport(Network)
     import Network
 
@@ -561,7 +565,9 @@ import Logging
             messageWithNewline.append(UInt8(ascii: "\n"))
 
             // Use a local actor-isolated variable to track continuation state
-            var sendContinuationResumed = false
+            // Fix Swift 6 strict concurrency: use reference box to allow cross-actor capture
+            // wangqi modified 2026-03-24
+            let sendContinuationResumed = _BoolBox()
 
             try await withCheckedThrowingContinuation {
                 [weak self] (continuation: CheckedContinuation<Void, Swift.Error>) in
@@ -578,8 +584,8 @@ import Logging
                         guard let self = self else { return }
 
                         Task { @MainActor in
-                            if !sendContinuationResumed {
-                                sendContinuationResumed = true
+                            if !sendContinuationResumed.value {
+                                sendContinuationResumed.value = true
                                 if let error = error {
                                     self.logger.error("Send error: \(error)")
 
@@ -796,7 +802,9 @@ import Logging
         /// - Returns: The received data chunk
         /// - Throws: Network errors or transport failures
         private func receiveData() async throws -> Data {
-            var receiveContinuationResumed = false
+            // Fix Swift 6 strict concurrency: use reference box to allow cross-actor capture
+            // wangqi modified 2026-03-24
+            let receiveContinuationResumed = _BoolBox()
 
             return try await withCheckedThrowingContinuation {
                 [weak self] (continuation: CheckedContinuation<Data, Swift.Error>) in
@@ -809,8 +817,8 @@ import Logging
                 connection.receive(minimumIncompleteLength: 1, maximumLength: maxLength) {
                     content, _, isComplete, error in
                     Task { @MainActor in
-                        if !receiveContinuationResumed {
-                            receiveContinuationResumed = true
+                        if !receiveContinuationResumed.value {
+                            receiveContinuationResumed.value = true
                             if let error = error {
                                 continuation.resume(throwing: MCPError.transportError(error))
                             } else if let content = content {
